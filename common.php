@@ -1,5 +1,8 @@
 <?php
-$path = $_REQUEST['path'] ?? die("path required");
+if (!isset($_REQUEST['path'])) {
+    die("path required");
+}
+$path = $_REQUEST['path'];
 
 $path = \strtr($path, '\\', '/');
 $i = \strpos($path, '/', 2);
@@ -26,5 +29,6 @@ if (!isset($upubs[$accName])) {
     http_response_code(404);
     die("Account Not Found");
 }
+$pubKeyB64 = $upubs[$accName];
 
 $sumPath = $accPath . $inAccPath;

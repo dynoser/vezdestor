@@ -17,11 +17,24 @@ class VezdesHeader
             return \substr($this->vezdesHELML, $i, $l);
         }
     }
+    
+    public static function base64Udecode($b64) {
+        return \base64_decode(\strtr($b64, '-_', '+/'));
+    }
+    
     public function getParDeB64($parName) {
         $b64 = $this->getParStr($parName);
         if ($b64) {
-            return \base64_decode(\strtr($b64, '-_', '+/'));
+            return self::base64Udecode($b64);
         }
+    }
+    public function getParExp($parName, $expectedLen) {
+        $bytes = $this->getParDeB64($parName);
+        if ($bytes && \strlen($bytes) !== $expectedLen) {
+            http_response_code(403);
+            die("Incorrect parameter $parName in VEZDES-header (expected length=$expectedLen bytes base64url-encoded)");
+        }
+        return $bytes;
     }
 }
 class VezdesParser {
@@ -43,8 +56,8 @@ class VezdesParser {
     public $signature;
     
     public function __construct($body, $maxBodySize) {
-        $this->bodyStr = isset($_POST['body'])?
-                $_POST['body'] :
+        $this->bodyStr = isset($_REQUEST['body'])?
+                $_REQUEST['body'] :
                 (empty($body) ? die("POST-body required") : $body);
         $this->bodyLen = \strlen($this->bodyStr);
         if ($this->bodyLen > $maxBodySize) {
@@ -66,16 +79,7 @@ class VezdesParser {
             http_response_code(403);
             die("No VEZDES-header in body (required for auth)");
         }
-        $this->hObj = new class ($vezdesHELML) extends VezdesHeader {
-            public function getParExp($parName, $expectedLen) {
-                $bytes = $this->getParDeB64($parName);
-                if ($bytes && \strlen($bytes) !== $expectedLen) {
-                    http_response_code(403);
-                    die("Incorrect parameter $parName in VEZDES-header (expected length=$expectedLen bytes base64url-encoded)");
-                }
-                return $bytes;
-            }
-        };
+        $this->hObj = new VezdesHeader($vezdesHELML);
         
         $this->pubkey = $this->hObj->getParExp('PUBKEY', 32);
         $this->signature = $this->hObj->getParExp('SIGNATURE', 64);
@@ -83,7 +87,7 @@ class VezdesParser {
         $this->emplStr = \str_repeat("\n", \is_numeric($empl) ? (int)$empl : 1);
     }
     
-    public function getHeaderPosition() {
+    public function calcHeaderPosition() {
         $spcs = $this->hObj->spcs;
         $docLen = $this->bodyLen;
         
@@ -163,9 +167,30 @@ class VezdesParser {
         return \substr($hash512, 0, 32);
     }
     
-    public function checkSignature() {
-        $outHashBin = $this->calcOutHash();
-        return \sodium_crypto_sign_verify_detached($this->signature, $outHashBin, $this->pubkey);
+    public static function hash512032($dataForHash) {
+        $hash512 = \hash('sha512', $dataForHash, true);
+        return \substr($hash512, 0, 32);
+    }
+    
+    public function checkSignature($signatureBin = null, $hashBin = null, $pubKeyBin = null) {
+        if (!$pubKeyBin) {
+            $pubKeyBin = $this->pubkey;
+        }
+        if (!$hashBin) {
+            $hashBin = $this->calcOutHash();
+        }
+        if (!$signatureBin) {
+            $signatureBin = $this->signature;
+        }
+        return self::signVerifyDetached($signatureBin, $hashBin, $pubKeyBin);
+    }
+
+    public static function signVerifyDetached($signatureBin, $hashBin, $pubKeyBin) {
+        if (\strlen($pubKeyBin) !== 32 || \strlen($signatureBin) !== 64) {
+            return false;
+        }
+        require 'checkSignFn.php';
+        return \sodium_crypto_sign_verify_detached($signatureBin, $hashBin, $pubKeyBin);
     }
 }
 
