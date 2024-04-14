@@ -34,6 +34,7 @@ if (isset($_REQUEST['signature'])) {
     }
     $bodyStr = $b->bodyStr;
 }
+$bodyLen = \strlen($bodyStr);
 
 if (\is_file($sumPath)) {
     $oldVersion = \file_get_contents($sumPath);
@@ -62,7 +63,7 @@ if (\is_file($sumPath)) {
 }
 
 $wb = \file_put_contents($sumPath, $bodyStr);
-if ($wb !== $b->bodyLen) {
+if ($wb !== $bodyLen) {
     http_response_code(500);
     die("Write error file $inAccPath for account $accName");
 }
