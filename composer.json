@@ -1,0 +1,14 @@
+{
+    "name": "dynoser/vezdestor",
+    "description": "The simplest file storage with REST-API access",
+    "authors": [
+        {
+            "name": "Dynoser",
+            "email": "alex@w3o.com"
+        }
+    ],
+    "require": {
+        "php": "^5.6|^7|^8",
+        "paragonie/sodium_compat": "^1.20"
+    }
+}
