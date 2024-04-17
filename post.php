@@ -7,6 +7,10 @@ if (!\array_key_exists('body', $_REQUEST)) {
     http_response_code(400);
     die("body parameter required");
 }
+if ('/history/' === \substr($inAccPath, 0, 9)) {
+    http_response_code(403);
+    echo "Can't write to history folder\n";    
+}
 
 if (isset($_REQUEST['signature'])) {
     $signature = \dynoser\vezdes\VezdesHeader::base64Udecode($_REQUEST['signature']);
@@ -37,11 +41,15 @@ if (isset($_REQUEST['signature'])) {
 $bodyLen = \strlen($bodyStr);
 
 if (\is_file($sumPath)) {
-    $oldVersion = \file_get_contents($sumPath);
-    if ($oldVersion === $bodyStr) {
+    $oldDataStr = \file_get_contents($sumPath);
+    if ($oldDataStr === $bodyStr) {
         http_response_code(200); // or 204
         echo '{"result": "Not modified"}';
         die;
+    }
+    // store history mod
+    if ($historyOn) {
+        require 'src/historyMod.php';
     }
 } else {
     $accBasePath = \realpath($accPath);
